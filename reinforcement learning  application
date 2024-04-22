@@ -1,0 +1,99 @@
+#include <iostream>
+#include <vector>
+#include <random>
+#include <ctime>
+
+using namespace std;
+
+// Define actions
+enum Action { GO_TO_FIRE, POUR_WATER };
+
+// Define rewards
+const int FIRE_REWARD = -100;
+const int WATER_REWARD = 100;
+
+// Define Q-table
+const int NUM_STATES = 2;
+const int NUM_ACTIONS = 2;
+vector<vector<double>> qTable(NUM_STATES, vector<double>(NUM_ACTIONS, 0.0));
+
+// Initialize random number generator
+random_device rd;
+mt19937 gen(rd());
+uniform_real_distribution<> dis(0, 1);
+
+// Function to select an action using epsilon-greedy policy
+Action selectAction(int state, double epsilon) {
+    if (dis(gen) < epsilon) {
+        // Random action
+        return static_cast<Action>(rand() % NUM_ACTIONS);
+    } else {
+        // Greedy action
+        double maxQ = -numeric_limits<double>::infinity();
+        Action bestAction = GO_TO_FIRE;  // default
+        for (int a = 0; a < NUM_ACTIONS; ++a) {
+            if (qTable[state][a] > maxQ) {
+                maxQ = qTable[state][a];
+                bestAction = static_cast<Action>(a);
+            }
+        }
+        return bestAction;
+    }
+}
+
+// Function to update Q-table based on Q-learning equation
+void updateQValue(int state, Action action, double reward, double alpha, double gamma) {
+    double maxNextQ = -numeric_limits<double>::infinity();
+    for (int a = 0; a < NUM_ACTIONS; ++a) {
+        if (qTable[state][a] > maxNextQ) {
+            maxNextQ = qTable[state][a];
+        }
+    }
+    qTable[state][action] += alpha * (reward + gamma * maxNextQ - qTable[state][action]);
+}
+
+int main() {
+    // Define parameters
+    const double epsilon = 0.1;  // exploration rate
+    const double alpha = 0.1;    // learning rate
+    const double gamma = 0.9;    // discount factor
+
+    // Run episodes
+    for (int episode = 0; episode < 5; ++episode) {
+        cout << "Episode " << episode + 1 << endl;
+
+        // Randomly choose initial state (fire or water)
+        int state = rand() % NUM_STATES;
+        cout << "Initial State: " << (state == 0 ? "Fire" : "Water") << endl;
+
+        // Episode loop
+        while (true) {
+            // Select action
+            Action action = selectAction(state, epsilon);
+
+            // Perform action and get reward
+            int reward;
+            if (state == 0 && action == GO_TO_FIRE) {  // If robot goes to fire
+                reward = FIRE_REWARD;
+                cout << "Robot went to fire (-100 points)" << endl;
+                break;  // Episode ends
+            } else if (state == 1 && action == POUR_WATER) {  // If robot pours water on fire
+                reward = WATER_REWARD;
+                cout << "Robot poured water on fire (+100 points)" << endl;
+                break;  // Episode ends
+            } else {
+                reward = 0;  // No reward for other actions
+            }
+
+            // Update Q-value
+            updateQValue(state, action, reward, alpha, gamma);
+
+            // Switch to next state
+            state = (state + 1) % NUM_STATES;
+        }
+
+        cout << endl;
+    }
+
+    return 0;
+}
